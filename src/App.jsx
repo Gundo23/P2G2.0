@@ -3328,6 +3328,13 @@ function importDefaultCourses() {
   const selectedPlayerDetails = findPlayerByName(players, selectedPlayer);
   const scoringPlayerHandicap = getPlayerHandicapValue(players, selectedPlayer);
   const scoringCourseDetails = getScoringCourse(selectedCourseDetails, detailedScorecard);
+  const courseHandicapForRound = getCourseHandicap(scoringPlayerHandicap, scoringCourseDetails);
+  const roundTeeLabel = String(
+    detailedScorecard?.tee_set?.colour ||
+      detailedScorecard?.tee_set?.name ||
+      selectedCourseDetails?.tee ||
+      "Yellow"
+  );
   const detailedHoles = detailedScorecard?.tee_set?.holes || [];
   const detailedHolesForRound = isNineHoles
     ? detailedHoles.slice(0, 9)
@@ -3540,6 +3547,42 @@ function importDefaultCourses() {
           margin-top: 4px;
           font-weight: 800;
           color: #0f172a !important;
+        }
+
+        .course-handicap-banner {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          margin: 12px 0;
+          padding: 12px;
+          border-radius: 16px;
+          background: #0f172a;
+          color: #ffffff;
+          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+        }
+
+        .course-handicap-banner div {
+          text-align: center;
+        }
+
+        .course-handicap-banner span {
+          display: block;
+          margin-bottom: 3px;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #cbd5e1;
+        }
+
+        .course-handicap-banner strong {
+          display: block;
+          font-size: 20px;
+          line-height: 1.1;
+          font-weight: 900;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .hole-info-cell {
@@ -4368,11 +4411,26 @@ function importDefaultCourses() {
                       Only 9 holes played?
                     </label>
 
+                    <div className="course-handicap-banner">
+                      <div>
+                        <span>HI</span>
+                        <strong>{Number(scoringPlayerHandicap || 0).toFixed(1)}</strong>
+                      </div>
+                      <div>
+                        <span>Course HC</span>
+                        <strong>{courseHandicapForRound}</strong>
+                      </div>
+                      <div>
+                        <span>Tee</span>
+                        <strong>{roundTeeLabel}</strong>
+                      </div>
+                    </div>
+
                     <div className="hole-score-grid">
                       {detailedHolesForRound.map((hole) => {
                         const holeStrokeIndex = getStrokeIndex(hole);
                         const holeShotsReceived = getShotsForHole(
-                          getCourseHandicap(scoringPlayerHandicap, scoringCourseDetails),
+                          courseHandicapForRound,
                           holeStrokeIndex
                         );
                         const holeStableford = calculateHoleStablefordPoint(
