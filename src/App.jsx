@@ -697,6 +697,52 @@ function calculateStablefordPoints(holes, holeScores, playerHandicap, course, pi
   }, 0);
 }
 
+function calculateRunningScoreSummary(holes, holeScores, playerHandicap, course, pickedUpHoles = {}) {
+  if (!holes?.length) {
+    return {
+      thru: 0,
+      gross: 0,
+      stableford: 0,
+      pickedUpCount: 0,
+      hasScores: false,
+    };
+  }
+
+  return holes.reduce(
+    (summary, hole) => {
+      const holeNumber = hole.hole_number;
+      const pickedUp = !!pickedUpHoles[holeNumber];
+      const gross = Number(holeScores[holeNumber] || 0);
+      const hasScore = gross > 0;
+
+      if (!pickedUp && !hasScore) return summary;
+
+      const stableford = calculateHoleStablefordPoint(
+        hole,
+        gross,
+        playerHandicap,
+        course,
+        pickedUp
+      );
+
+      return {
+        thru: summary.thru + 1,
+        gross: summary.gross + (pickedUp ? 0 : gross),
+        stableford: summary.stableford + (Number(stableford) || 0),
+        pickedUpCount: summary.pickedUpCount + (pickedUp ? 1 : 0),
+        hasScores: true,
+      };
+    },
+    {
+      thru: 0,
+      gross: 0,
+      stableford: 0,
+      pickedUpCount: 0,
+      hasScores: false,
+    }
+  );
+}
+
 
 const HARDCODED_SCORECARDS = {
   "leasowe golf club": {
@@ -2572,20 +2618,27 @@ function importDefaultCourses() {
   function handleCourseSearchChange(value) {
     setCourseSearch(value);
 
+    const matches = getFilteredCourses(value);
+
     setDetailedScorecard(null);
     setHoleScores({});
     setPickedUpHoles({});
     setScorecardError("");
     setAutoLoadedScorecardKey("");
 
-    // Important: typing in search should not select or load a course.
-    // A course is selected only when the user taps/clicks a result from the list.
-    setSelectedCourse("");
-
-    const typedCourse = buildTypedCourseFromSearch(value);
-    setScorecardApiDebug(
-      typedCourse ? "Select a course from the matching results below" : ""
-    );
+    if (matches.length > 0) {
+      const firstMatch = matches[0];
+      setSelectedCourse(courseKey(firstMatch));
+      setScorecardApiDebug(`Ready to load: ${firstMatch.name} / ${firstMatch.tee}`);
+    } else {
+      setSelectedCourse("");
+      const typedCourse = buildTypedCourseFromSearch(value);
+      setScorecardApiDebug(
+        typedCourse
+          ? `Ready to try API/fallback for: ${typedCourse.name} / Yellow`
+          : ""
+      );
+    }
   }
 
   function chooseCourse(course) {
@@ -3050,13 +3103,36 @@ function importDefaultCourses() {
   }
 
   function getCourseToLoad() {
-    const selectedFromKey = courses.find((c) => courseKey(c) === selectedCourse);
+    const searchText = String(courseSearch || "").trim().toLowerCase();
 
-    // Important: do not infer the first search result while the user is typing.
-    // Only a confirmed selection from chooseCourse/selectCourseByKey should load.
-    if (selectedFromKey) return selectedFromKey;
+    if (isLeasoweCourseName(searchText)) {
+      const existingLeasowe = courses.find((c) => isLeasoweCourseName(c.name));
+      return existingLeasowe || {
+        name: "Leasowe Golf Club",
+        tee: "Yellow",
+        par: 71,
+        rating: 71.4,
+        slope: 129,
+      };
+    }
 
-    return null;
+    if (!searchText) return selectedCourseDetails;
+
+    const matches = getFilteredCourses(courseSearch);
+    const exactMatch = matches.find(
+      (c) => c.name.toLowerCase() === searchText
+    );
+
+    const selectedMatchesSearch = selectedCourseDetails?.name
+      ?.toLowerCase()
+      .includes(searchText);
+
+    return (
+      exactMatch ||
+      (selectedMatchesSearch ? selectedCourseDetails : matches[0]) ||
+      buildTypedCourseFromSearch(courseSearch) ||
+      selectedCourseDetails
+    );
   }
 
   async function loadDetailedScorecardTest() {
@@ -3257,6 +3333,13 @@ function importDefaultCourses() {
     : detailedHoles;
   const detailedSummary = analyseHoleScores(detailedHolesForRound, holeScores, pickedUpHoles);
   const autoStablefordPoints = calculateStablefordPoints(
+    detailedHolesForRound,
+    holeScores,
+    selectedPlayerDetails?.handicap,
+    selectedCourseDetails,
+    pickedUpHoles
+  );
+  const runningScoreSummary = calculateRunningScoreSummary(
     detailedHolesForRound,
     holeScores,
     selectedPlayerDetails?.handicap,
@@ -3506,6 +3589,93 @@ function importDefaultCourses() {
           font-weight: 700;
           color: #64748b;
           margin-bottom: 2px;
+        }
+
+        .hole-score-summary {
+          margin-top: 12px;
+          padding: 12px;
+          border-radius: 14px;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+        }
+
+        .running-score-total {
+          position: sticky;
+          bottom: 10px;
+          z-index: 20;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          margin: 14px 0 4px;
+          padding: 10px;
+          border-radius: 18px;
+          background: #0f172a;
+          color: #ffffff;
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+        }
+
+        .running-score-total div {
+          text-align: center;
+        }
+
+        .running-score-total span {
+          display: block;
+          margin-bottom: 2px;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #cbd5e1;
+        }
+
+        .running-score-total strong {
+          font-size: 18px;
+          line-height: 1.1;
+        }
+
+        .running-score-note {
+          grid-column: 1 / -1;
+          margin: 0;
+          text-align: center;
+          font-size: 11px;
+          font-weight: 700;
+          color: #cbd5e1;
+        }
+
+        .scorecard-confirmed-badge {
+          display: inline-block;
+          margin: 6px 0 4px;
+          padding: 5px 10px;
+          border-radius: 999px;
+          background: #dcfce7;
+          color: #166534;
+          border: 1px solid #22c55e;
+          font-size: 12px;
+          font-weight: 800;
+        }
+
+        .scorecard-estimated-badge {
+          display: inline-block;
+          margin: 6px 0 4px;
+          padding: 5px 10px;
+          border-radius: 999px;
+          background: #fef3c7;
+          color: #92400e;
+          border: 1px solid #f59e0b;
+          font-size: 12px;
+          font-weight: 800;
+        }
+
+        .scorecard-api-badge {
+          display: inline-block;
+          margin: 6px 0 4px;
+          padding: 5px 10px;
+          border-radius: 999px;
+          background: #dbeafe;
+          color: #1e40af;
+          border: 1px solid #3b82f6;
+          font-size: 12px;
+          font-weight: 800;
         }
 
         .calculated-score-label {
@@ -4145,6 +4315,11 @@ function importDefaultCourses() {
               </div>
 
               <div className="scorecard-test-box">
+                <strong>Hole-by-hole scoring</strong>
+                <p className="muted">
+                  Loads the selected course scorecard. Gross score and Stableford points calculate automatically as you enter hole scores.
+                </p>
+
                 {scorecardLoading && (
                   <p className="muted">Loading scorecard automatically...</p>
                 )}
@@ -4185,6 +4360,41 @@ function importDefaultCourses() {
                       />
                       Only 9 holes played?
                     </label>
+
+                    <div className="hole-score-summary">
+                      <strong>{detailedScorecard.course_name}</strong><br />
+                      {detailedScorecard.hardcodedScorecard && (
+                        <>
+                          <span className="scorecard-confirmed-badge">✅ Scorecard confirmed</span><br />
+                        </>
+                      )}
+                      {detailedScorecard.estimatedScorecard && (
+                        <>
+                          <span className="scorecard-estimated-badge">⚠️ Estimated scorecard</span><br />
+                        </>
+                      )}
+                      {detailedScorecard.rapidApiScorecard && (
+                        <>
+                          <span className="scorecard-api-badge">🔵 Scorecard loaded from API</span><br />
+                        </>
+                      )}
+                      Tee: {detailedScorecard.tee_set?.colour || detailedScorecard.tee_set?.name || "-"} |
+                      Rating {detailedScorecard.tee_set?.course_rating} |
+                      Slope {detailedScorecard.tee_set?.slope_rating}<br />
+                      {detailedSummary.complete ? (
+                        <>
+                          Gross: {detailedSummary.gross} |
+                          Stableford: {autoStablefordPoints || 0}<br />
+                          Front 9: {detailedSummary.frontNine} |
+                          Back 9: {isNineHoles ? "-" : detailedSummary.backNine}<br />
+                          Pars: {detailedSummary.pars} |
+                          Birdies: {detailedSummary.birdies} |
+                          Eagles: {detailedSummary.eagles}
+                        </>
+                      ) : (
+                        <>Enter all {isNineHoles ? 9 : 18} hole scores to calculate gross and Stableford totals.</>
+                      )}
+                    </div>
 
                     <div className="hole-score-grid">
                       {detailedHolesForRound.map((hole) => {
@@ -4239,6 +4449,28 @@ function importDefaultCourses() {
                         );
                       })}
                     </div>
+
+                    {runningScoreSummary.hasScores && (
+                      <div className="running-score-total">
+                        <div>
+                          <span>Thru</span>
+                          <strong>{runningScoreSummary.thru}</strong>
+                        </div>
+                        <div>
+                          <span>Gross</span>
+                          <strong>{runningScoreSummary.gross}</strong>
+                        </div>
+                        <div>
+                          <span>Stableford</span>
+                          <strong>{runningScoreSummary.stableford}</strong>
+                        </div>
+                        {runningScoreSummary.pickedUpCount > 0 && (
+                          <p className="running-score-note">
+                            Picked-up holes count as 0 Stableford points and are excluded from running gross.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
