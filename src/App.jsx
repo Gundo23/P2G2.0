@@ -2618,27 +2618,20 @@ function importDefaultCourses() {
   function handleCourseSearchChange(value) {
     setCourseSearch(value);
 
-    const matches = getFilteredCourses(value);
-
     setDetailedScorecard(null);
     setHoleScores({});
     setPickedUpHoles({});
     setScorecardError("");
     setAutoLoadedScorecardKey("");
 
-    if (matches.length > 0) {
-      const firstMatch = matches[0];
-      setSelectedCourse(courseKey(firstMatch));
-      setScorecardApiDebug(`Ready to load: ${firstMatch.name} / ${firstMatch.tee}`);
-    } else {
-      setSelectedCourse("");
-      const typedCourse = buildTypedCourseFromSearch(value);
-      setScorecardApiDebug(
-        typedCourse
-          ? `Ready to try API/fallback for: ${typedCourse.name} / Yellow`
-          : ""
-      );
-    }
+    // Typing in search should only show matching courses.
+    // The app must not select or load the first match until the user clicks one.
+    setSelectedCourse("");
+
+    const typedCourse = buildTypedCourseFromSearch(value);
+    setScorecardApiDebug(
+      typedCourse ? "Select a course from the matching results below" : ""
+    );
   }
 
   function chooseCourse(course) {
@@ -3103,36 +3096,13 @@ function importDefaultCourses() {
   }
 
   function getCourseToLoad() {
-    const searchText = String(courseSearch || "").trim().toLowerCase();
+    const selectedFromKey = courses.find((c) => courseKey(c) === selectedCourse);
 
-    if (isLeasoweCourseName(searchText)) {
-      const existingLeasowe = courses.find((c) => isLeasoweCourseName(c.name));
-      return existingLeasowe || {
-        name: "Leasowe Golf Club",
-        tee: "Yellow",
-        par: 71,
-        rating: 71.4,
-        slope: 129,
-      };
-    }
+    // Do not infer from the search text or first result while the user is typing.
+    // Only a confirmed click from the matching list should create selectedCourse.
+    if (selectedFromKey) return selectedFromKey;
 
-    if (!searchText) return selectedCourseDetails;
-
-    const matches = getFilteredCourses(courseSearch);
-    const exactMatch = matches.find(
-      (c) => c.name.toLowerCase() === searchText
-    );
-
-    const selectedMatchesSearch = selectedCourseDetails?.name
-      ?.toLowerCase()
-      .includes(searchText);
-
-    return (
-      exactMatch ||
-      (selectedMatchesSearch ? selectedCourseDetails : matches[0]) ||
-      buildTypedCourseFromSearch(courseSearch) ||
-      selectedCourseDetails
-    );
+    return null;
   }
 
   async function loadDetailedScorecardTest() {
@@ -4360,41 +4330,6 @@ function importDefaultCourses() {
                       />
                       Only 9 holes played?
                     </label>
-
-                    <div className="hole-score-summary">
-                      <strong>{detailedScorecard.course_name}</strong><br />
-                      {detailedScorecard.hardcodedScorecard && (
-                        <>
-                          <span className="scorecard-confirmed-badge">✅ Scorecard confirmed</span><br />
-                        </>
-                      )}
-                      {detailedScorecard.estimatedScorecard && (
-                        <>
-                          <span className="scorecard-estimated-badge">⚠️ Estimated scorecard</span><br />
-                        </>
-                      )}
-                      {detailedScorecard.rapidApiScorecard && (
-                        <>
-                          <span className="scorecard-api-badge">🔵 Scorecard loaded from API</span><br />
-                        </>
-                      )}
-                      Tee: {detailedScorecard.tee_set?.colour || detailedScorecard.tee_set?.name || "-"} |
-                      Rating {detailedScorecard.tee_set?.course_rating} |
-                      Slope {detailedScorecard.tee_set?.slope_rating}<br />
-                      {detailedSummary.complete ? (
-                        <>
-                          Gross: {detailedSummary.gross} |
-                          Stableford: {autoStablefordPoints || 0}<br />
-                          Front 9: {detailedSummary.frontNine} |
-                          Back 9: {isNineHoles ? "-" : detailedSummary.backNine}<br />
-                          Pars: {detailedSummary.pars} |
-                          Birdies: {detailedSummary.birdies} |
-                          Eagles: {detailedSummary.eagles}
-                        </>
-                      ) : (
-                        <>Enter all {isNineHoles ? 9 : 18} hole scores to calculate gross and Stableford totals.</>
-                      )}
-                    </div>
 
                     <div className="hole-score-grid">
                       {detailedHolesForRound.map((hole) => {
