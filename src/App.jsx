@@ -635,15 +635,39 @@ function analyseHoleScores(holes, holeScores, pickedUpHoles = {}) {
 }
 
 
+function getStrokeIndex(hole) {
+  return Number(
+    hole?.stroke_index ??
+      hole?.strokeIndex ??
+      hole?.strokeIndexMen ??
+      hole?.si ??
+      18
+  ) || 18;
+}
+
+function getCourseHandicap(playerHandicap, course) {
+  const handicapIndex = Number(playerHandicap);
+
+  if (!Number.isFinite(handicapIndex)) return 0;
+
+  const slope = Number(course?.slope || course?.slope_rating || 113);
+  const rating = Number(course?.rating || course?.course_rating || course?.par || 72);
+  const par = Number(course?.par || 72);
+
+  return Math.max(
+    0,
+    Math.round(handicapIndex * (slope / 113) + (rating - par))
+  );
+}
+
 function getShotsForHole(handicap, strokeIndex) {
   const playingHandicap = Math.max(0, Math.round(Number(handicap) || 0));
-  const si = Number(strokeIndex) || 18;
+  const si = Math.min(18, Math.max(1, Number(strokeIndex) || 18));
   const baseShots = Math.floor(playingHandicap / 18);
   const extraShots = playingHandicap % 18;
 
   return baseShots + (si <= extraShots ? 1 : 0);
 }
-
 
 function calculateHoleStablefordPoint(hole, grossScore, playerHandicap, course, pickedUp = false) {
   if (pickedUp) return 0;
@@ -651,16 +675,9 @@ function calculateHoleStablefordPoint(hole, grossScore, playerHandicap, course, 
   const gross = Number(grossScore || 0);
   if (!hole || gross <= 0) return "";
 
-  const courseHandicap = Math.max(
-    0,
-    Math.round(
-      Number(playerHandicap || 0) * (Number(course?.slope || 113) / 113) +
-        (Number(course?.rating || course?.par || 72) - Number(course?.par || 72))
-    )
-  );
-
-  const par = Number(hole.par);
-  const shots = getShotsForHole(courseHandicap, hole.stroke_index);
+  const par = Number(hole.par || 0);
+  const courseHandicap = getCourseHandicap(playerHandicap, course);
+  const shots = getShotsForHole(courseHandicap, getStrokeIndex(hole));
   const netScore = gross - shots;
 
   return Math.max(0, 2 + (par - netScore));
@@ -676,20 +693,14 @@ function calculateStablefordPoints(holes, holeScores, playerHandicap, course, pi
 
   if (!complete) return "";
 
-  const courseHandicap = Math.max(
-    0,
-    Math.round(
-      Number(playerHandicap || 0) * (Number(course?.slope || 113) / 113) +
-        (Number(course?.rating || course?.par || 72) - Number(course?.par || 72))
-    )
-  );
+  const courseHandicap = getCourseHandicap(playerHandicap, course);
 
   return holes.reduce((total, hole) => {
     if (pickedUpHoles[hole.hole_number]) return total;
 
     const gross = Number(holeScores[hole.hole_number]);
-    const par = Number(hole.par);
-    const shots = getShotsForHole(courseHandicap, hole.stroke_index);
+    const par = Number(hole.par || 0);
+    const shots = getShotsForHole(courseHandicap, getStrokeIndex(hole));
     const netScore = gross - shots;
     const points = Math.max(0, 2 + (par - netScore));
 
@@ -4346,7 +4357,7 @@ function importDefaultCourses() {
                             <div className="hole-info-cell">
                               <label>Hole {hole.hole_number}</label>
                               <small>
-                                Par {hole.par} | SI {hole.stroke_index} | {hole.yardage} yds
+                                Par {hole.par} | SI {getStrokeIndex(hole)} | {hole.yardage} yds
                               </small>
 
                               <button
