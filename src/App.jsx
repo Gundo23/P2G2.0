@@ -3538,15 +3538,6 @@ function importDefaultCourses() {
           margin-bottom: 2px;
         }
 
-        .hole-score-summary {
-          margin-top: 12px;
-          padding: 12px;
-          border-radius: 14px;
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-        }
-
-
         .calculated-score-label {
           display: block;
           margin-top: 12px;
@@ -4224,26 +4215,6 @@ function importDefaultCourses() {
                       />
                       Only 9 holes played?
                     </label>
-
-                    <div className="hole-score-summary">
-                      <strong>{detailedScorecard.course_name}</strong><br />
-                      Tee: {detailedScorecard.tee_set?.colour || detailedScorecard.tee_set?.name || "-"} |
-                      Rating {detailedScorecard.tee_set?.course_rating} |
-                      Slope {detailedScorecard.tee_set?.slope_rating}<br />
-                      {detailedSummary.complete ? (
-                        <>
-                          Gross: {detailedSummary.gross} |
-                          Stableford: {autoStablefordPoints || 0}<br />
-                          Front 9: {detailedSummary.frontNine} |
-                          Back 9: {isNineHoles ? "-" : detailedSummary.backNine}<br />
-                          Pars: {detailedSummary.pars} |
-                          Birdies: {detailedSummary.birdies} |
-                          Eagles: {detailedSummary.eagles}
-                        </>
-                      ) : (
-                        <>Enter all {isNineHoles ? 9 : 18} hole scores to calculate gross and Stableford totals.</>
-                      )}
-                    </div>
 
                     <div className="hole-score-grid">
                       {detailedHolesForRound.map((hole) => {
