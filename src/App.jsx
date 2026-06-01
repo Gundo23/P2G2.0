@@ -3516,6 +3516,12 @@ function importDefaultCourses() {
           line-height: 1.25;
         }
 
+        .shots-received-line {
+          margin-top: 4px;
+          font-weight: 800;
+          color: #0f172a !important;
+        }
+
         .hole-info-cell {
           min-width: 0;
         }
@@ -4344,6 +4350,11 @@ function importDefaultCourses() {
 
                     <div className="hole-score-grid">
                       {detailedHolesForRound.map((hole) => {
+                        const holeStrokeIndex = getStrokeIndex(hole);
+                        const holeShotsReceived = getShotsForHole(
+                          getCourseHandicap(selectedPlayerDetails?.handicap, selectedCourseDetails),
+                          holeStrokeIndex
+                        );
                         const holeStableford = calculateHoleStablefordPoint(
                           hole,
                           holeScores[hole.hole_number],
@@ -4357,7 +4368,10 @@ function importDefaultCourses() {
                             <div className="hole-info-cell">
                               <label>Hole {hole.hole_number}</label>
                               <small>
-                                Par {hole.par} | SI {getStrokeIndex(hole)} | {hole.yardage} yds
+                                Par {hole.par} | SI {holeStrokeIndex} | {hole.yardage} yds
+                              </small>
+                              <small className="shots-received-line">
+                                Shots received: {holeShotsReceived}
                               </small>
 
                               <button
