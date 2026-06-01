@@ -660,6 +660,24 @@ function getCourseHandicap(playerHandicap, course) {
   );
 }
 
+function getScoringCourse(course, scorecard) {
+  const teeSet = scorecard?.tee_set || scorecard?.teeSet || {};
+
+  return {
+    ...(course || {}),
+    par: Number(teeSet.par ?? course?.par ?? 72),
+    rating: Number(teeSet.course_rating ?? teeSet.rating ?? course?.rating ?? course?.course_rating ?? course?.par ?? 72),
+    slope: Number(teeSet.slope_rating ?? teeSet.slope ?? course?.slope ?? course?.slope_rating ?? 113),
+  };
+}
+
+function getPlayerHandicapValue(players, selectedPlayer) {
+  const player = findPlayerByName(players, selectedPlayer) || players?.[0];
+  const handicap = Number(player?.handicap ?? player?.hc ?? player?.handicapIndex ?? 0);
+
+  return Number.isFinite(handicap) ? handicap : 0;
+}
+
 function getShotsForHole(handicap, strokeIndex) {
   const playingHandicap = Math.max(0, Math.round(Number(handicap) || 0));
   const si = Math.min(18, Math.max(1, Number(strokeIndex) || 18));
@@ -3308,6 +3326,8 @@ function importDefaultCourses() {
     courses[0];
 
   const selectedPlayerDetails = findPlayerByName(players, selectedPlayer);
+  const scoringPlayerHandicap = getPlayerHandicapValue(players, selectedPlayer);
+  const scoringCourseDetails = getScoringCourse(selectedCourseDetails, detailedScorecard);
   const detailedHoles = detailedScorecard?.tee_set?.holes || [];
   const detailedHolesForRound = isNineHoles
     ? detailedHoles.slice(0, 9)
@@ -3316,15 +3336,15 @@ function importDefaultCourses() {
   const autoStablefordPoints = calculateStablefordPoints(
     detailedHolesForRound,
     holeScores,
-    selectedPlayerDetails?.handicap,
-    selectedCourseDetails,
+    scoringPlayerHandicap,
+    scoringCourseDetails,
     pickedUpHoles
   );
   const runningScoreSummary = calculateRunningScoreSummary(
     detailedHolesForRound,
     holeScores,
-    selectedPlayerDetails?.handicap,
-    selectedCourseDetails,
+    scoringPlayerHandicap,
+    scoringCourseDetails,
     pickedUpHoles
   );
 
@@ -4352,14 +4372,14 @@ function importDefaultCourses() {
                       {detailedHolesForRound.map((hole) => {
                         const holeStrokeIndex = getStrokeIndex(hole);
                         const holeShotsReceived = getShotsForHole(
-                          getCourseHandicap(selectedPlayerDetails?.handicap, selectedCourseDetails),
+                          getCourseHandicap(scoringPlayerHandicap, scoringCourseDetails),
                           holeStrokeIndex
                         );
                         const holeStableford = calculateHoleStablefordPoint(
                           hole,
                           holeScores[hole.hole_number],
-                          selectedPlayerDetails?.handicap,
-                          selectedCourseDetails,
+                          scoringPlayerHandicap,
+                          scoringCourseDetails,
                           pickedUpHoles[hole.hole_number]
                         );
 
