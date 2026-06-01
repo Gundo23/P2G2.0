@@ -266,7 +266,7 @@ function titleCaseCourseName(value) {
       return word.charAt(0).toUpperCase() + word.slice(1);
     })
     .join(" ")
-    .replace(/golf club$/i, "Golf Club");
+    .replace(/\bgolf club$/i, "Golf Club");
 }
 
 function buildTypedCourseFromSearch(searchText) {
