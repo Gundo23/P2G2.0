@@ -1579,16 +1579,33 @@ function importDefaultCourses() {
     setPickedUpHoles({});
     setScorecardError("");
     setAutoLoadedScorecardKey("");
-    setScorecardApiDebug(`Ready to load: ${course.name} / ${course.tee}`);
-  }
-
-  function addRound() {
+    setScorecardApiDebug(`Ready to load: ${course.name} / ${course.
+      
+      function addRound() {
+  try {
     const course = selectedCourseDetails;
     const player = findPlayerByName(players, selectedPlayer);
 
-    if (!course || !player) return;
+    if (!course?.name) {
+      showToast("Choose a course first");
+      return;
+    }
+
+    if (!player?.name) {
+      showToast("Choose a valid player first");
+      return;
+    }
 
     const selectedPlayerDetails = player;
+    const courseForRound = getScoringCourse(course, detailedScorecard);
+
+    const courseTeeForRound =
+      roundTeeLabel ||
+      detailedScorecard?.tee_set?.colour ||
+      detailedScorecard?.tee_set?.name ||
+      course?.tee ||
+      "Yellow";
+
     const detailedScoreReady =
       roundEntryMode === "hole-by-hole" &&
       detailedHolesForRound.length > 0 &&
@@ -1604,11 +1621,15 @@ function importDefaultCourses() {
       return;
     }
 
-    const oldHandicap = Number(selectedPlayerDetails.handicap);
+    const oldHandicap = Number(selectedPlayerDetails.handicap || 0);
     const finalScore = detailedScoreReady ? detailedSummary.gross : score;
     const finalPoints = detailedScoreReady ? autoStablefordPoints : points;
+
     const adjustedScore =
-      isNineHoles && finalScore ? Number(finalScore) * 2 : finalScore;
+      isNineHoles && finalScore && finalScore !== "NR"
+        ? Number(finalScore) * 2
+        : finalScore;
+
     const adjustedPoints =
       isNineHoles && finalPoints ? Number(finalPoints) * 2 : finalPoints;
 
@@ -1631,15 +1652,15 @@ function importDefaultCourses() {
           rounds,
           adjustedScore,
           adjustedPoints,
-          course
+          courseForRound
         );
 
     const safeMerit = Math.max(0, Math.min(10, Number(meritPoints || 0)));
 
     const round = {
-      player: selectedPlayer,
+      player: selectedPlayerDetails.name,
       course: course.name,
-      tee: course.tee,
+      tee: courseTeeForRound,
       oldHandicap,
       newHandicap: hcResult.newHandicap,
       differential: hcResult.differential,
@@ -1651,9 +1672,11 @@ function importDefaultCourses() {
         ? detailedHolesForRound.map((hole) => ({
             hole: hole.hole_number,
             par: hole.par,
-            strokeIndex: hole.stroke_index,
+            strokeIndex: getStrokeIndex(hole),
             yardage: hole.yardage,
-            score: Number(holeScores[hole.hole_number]),
+            score: pickedUpHoles[hole.hole_number]
+              ? "PU"
+              : Number(holeScores[hole.hole_number] || 0),
           }))
         : [],
       detailedScoring: detailedScoreReady,
@@ -1667,36 +1690,42 @@ function importDefaultCourses() {
       eagles: detailedScoreReady ? detailedSummary.eagles : 0,
       meritPoints: safeMerit,
       didWin,
-      rating: course.rating,
-      slope: course.slope,
-      par: course.par,
+      rating: courseForRound.rating,
+      slope: courseForRound.slope,
+      par: courseForRound.par,
       date: new Date().toLocaleDateString(),
     };
 
     setRounds([round, ...rounds]);
     clearActiveRoundDraft();
+
     setPlayers(
       players.map((p) =>
-        normaliseName(p.name) === normaliseName(selectedPlayer)
+        normaliseName(p.name) === normaliseName(selectedPlayerDetails.name)
           ? { ...p, handicap: hcResult.newHandicap }
           : p
       )
     );
 
-    let activityText = `${selectedPlayer} played ${course.name}`;
+    let activityText = `${selectedPlayerDetails.name} played ${course.name}`;
     if (finalScore) activityText += ` and shot ${finalScore}`;
     if (finalPoints) activityText += ` with ${finalPoints} Stableford points`;
     if (detailedScoreReady) activityText += ` using hole-by-hole scoring`;
     if (didWin) activityText += ` and won the comp 🏆`;
+
     addActivity(activityText);
 
-    if (didWin) unlockBadge(selectedPlayer, "winner");
-    if (detailedScoreReady && detailedSummary.pars > 0) unlockBadge(selectedPlayer, "par");
-    if (detailedScoreReady && detailedSummary.birdies > 0) unlockBadge(selectedPlayer, "birdie");
-    if (detailedScoreReady && detailedSummary.eagles > 0) unlockBadge(selectedPlayer, "eagle");
-    if (detailedScoreReady && detailedSummary.holeInOnes > 0) unlockBadge(selectedPlayer, "holeInOne");
+    if (didWin) unlockBadge(selectedPlayerDetails.name, "winner");
+    if (detailedScoreReady && detailedSummary.pars > 0)
+      unlockBadge(selectedPlayerDetails.name, "par");
+    if (detailedScoreReady && detailedSummary.birdies > 0)
+      unlockBadge(selectedPlayerDetails.name, "birdie");
+    if (detailedScoreReady && detailedSummary.eagles > 0)
+      unlockBadge(selectedPlayerDetails.name, "eagle");
+    if (detailedScoreReady && detailedSummary.holeInOnes > 0)
+      unlockBadge(selectedPlayerDetails.name, "holeInOne");
 
-    setHistoryPlayer(selectedPlayer);
+    setHistoryPlayer(selectedPlayerDetails.name);
     setScore("");
     setPoints("");
     setMeritPoints("");
@@ -1709,13 +1738,17 @@ function importDefaultCourses() {
     setAutoLoadedScorecardKey("");
     setRoundEntryMode("");
     setPage("history");
+
     showToast(
       hcResult.intelligenceUsed
         ? "Round saved - HC Intelligence used"
         : "Round saved"
     );
+  } catch (error) {
+    console.error("Round save failed", error);
+    alert(`Round could not be saved: ${error?.message || "unknown error"}`);
   }
-
+}
  function recalculatePlayerAfterRoundChange(playerName, updatedRounds, originalRounds) {
   const deletedPlayerRounds = originalRounds.filter((r) =>
     roundBelongsToPlayer(r, playerName)
