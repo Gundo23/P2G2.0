@@ -352,20 +352,18 @@ function calculateWHSHandicapFromDifferentials(differentials, startingHandicap) 
   }
 
   let numberToUse = 1;
-  let adjustment = 0;
 
+  // Society WHS-style table.
+  // This keeps the best-score progression for under-20 records,
+  // but removes the extra early-record deductions (-2 / -1) that caused huge cuts.
   if (count === 3) {
     numberToUse = 1;
-    adjustment = -2;
   } else if (count === 4) {
     numberToUse = 1;
-    adjustment = -1;
   } else if (count === 5) {
     numberToUse = 1;
-    adjustment = 0;
   } else if (count === 6) {
     numberToUse = 2;
-    adjustment = -1;
   } else if (count >= 7 && count <= 8) {
     numberToUse = 2;
   } else if (count >= 9 && count <= 11) {
@@ -386,7 +384,7 @@ function calculateWHSHandicapFromDifferentials(differentials, startingHandicap) 
   const average =
     scoresToUse.reduce((sum, d) => sum + d, 0) / scoresToUse.length;
 
-  return round1(average + adjustment);
+  return round1(average);
 }
 
 function stablefordHandicapAdjustment(oldHandicap, points, didWin) {
@@ -2858,7 +2856,7 @@ function importDefaultCourses() {
       setPage("history");
       showToast(
         hcResult.intelligenceUsed
-          ? "Round saved - HC Intelligence used"
+          ? "Round saved - WHS calculation used"
           : "Round saved"
       );
     } catch (error) {
