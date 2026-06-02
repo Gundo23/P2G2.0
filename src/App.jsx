@@ -2718,9 +2718,8 @@ function importDefaultCourses() {
         ),
       };
       const courseTeeForRound =
-        roundTeeLabel ||
-        detailedScorecard?.tee_set?.colour ||
-        detailedScorecard?.tee_set?.name ||
+        teeSet?.colour ||
+        teeSet?.name ||
         course?.tee ||
         "Yellow";
 
