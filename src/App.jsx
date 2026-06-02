@@ -2723,6 +2723,15 @@ function importDefaultCourses() {
         course?.tee ||
         "Yellow";
 
+      const getRoundStrokeIndex = (hole) =>
+        Number(
+          hole?.stroke_index ??
+            hole?.strokeIndex ??
+            hole?.strokeIndexMen ??
+            hole?.si ??
+            18
+        ) || 18;
+
       const detailedScoreReady =
         roundEntryMode === "hole-by-hole" &&
         detailedHolesForRound.length > 0 &&
@@ -2787,7 +2796,7 @@ function importDefaultCourses() {
           ? detailedHolesForRound.map((hole) => ({
               hole: hole.hole_number,
               par: hole.par,
-              strokeIndex: getStrokeIndex(hole),
+              strokeIndex: getRoundStrokeIndex(hole),
               yardage: hole.yardage,
               score: pickedUpHoles[hole.hole_number]
                 ? "PU"
