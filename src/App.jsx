@@ -2697,7 +2697,26 @@ function importDefaultCourses() {
       }
 
       const selectedPlayerDetails = player;
-      const courseForRound = getScoringCourse(course, detailedScorecard);
+      const teeSet = detailedScorecard?.tee_set || detailedScorecard?.teeSet || {};
+      const courseForRound = {
+        ...course,
+        par: Number(teeSet.par ?? course?.par ?? 72),
+        rating: Number(
+          teeSet.course_rating ??
+            teeSet.rating ??
+            course?.rating ??
+            course?.course_rating ??
+            course?.par ??
+            72
+        ),
+        slope: Number(
+          teeSet.slope_rating ??
+            teeSet.slope ??
+            course?.slope ??
+            course?.slope_rating ??
+            113
+        ),
+      };
       const courseTeeForRound =
         roundTeeLabel ||
         detailedScorecard?.tee_set?.colour ||
