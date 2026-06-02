@@ -3535,29 +3535,40 @@ function importDefaultCourses() {
   );
 
   useEffect(() => {
-    if (!loggedIn) return;
-
-    const askedThisSession = sessionStorage.getItem("p2g-active-round-restore-asked") === "true";
-    if (askedThisSession) return;
+    if (!loggedIn || loading) return;
 
     const draft = readActiveRoundDraft();
     if (!draft?.roundEntryMode || !draft?.detailedScorecard) return;
 
-    sessionStorage.setItem("p2g-active-round-restore-asked", "true");
+    const savedScores = draft?.holeScores || {};
+    const savedPickedUp = draft?.pickedUpHoles || {};
+    const hasProgress =
+      Object.values(savedScores).some((value) => Number(value || 0) > 0) ||
+      Object.values(savedPickedUp).some(Boolean);
+
+    if (!hasProgress) {
+      clearActiveRoundDraft();
+      return;
+    }
 
     const restore = window.confirm(
-      `Resume your unsaved round at ${draft.course?.name || "the selected course"}?`
+      `Resume unfinished round for ${draft.selectedPlayer || "this player"} at ${draft.course?.name || "the selected course"}?`
     );
 
-    if (!restore) return;
+    if (!restore) {
+      clearActiveRoundDraft();
+      return;
+    }
 
     setPage("add-round");
     setRoundEntryMode(draft.roundEntryMode || "hole-by-hole");
     setSelectedPlayer(draft.selectedPlayer || selectedPlayer);
-    if (draft.course) {
+
+    if (draft.course?.name) {
       setSelectedCourse(courseKey(draft.course));
       setCourseSearch(draft.course.name || "");
     }
+
     setDetailedScorecard(draft.detailedScorecard);
     setHoleScores(draft.holeScores || {});
     setPickedUpHoles(draft.pickedUpHoles || {});
@@ -3568,12 +3579,31 @@ function importDefaultCourses() {
     setAutoLoadedScorecardKey(draft.course ? courseKey(draft.course) : "");
     setScorecardApiDebug("Unsaved round restored from this device");
     showToast("Unsaved round restored");
-  }, [loggedIn]);
+  }, [loggedIn, loading]);
 
   useEffect(() => {
     if (roundEntryMode !== "hole-by-hole") return;
     if (!detailedScorecard) return;
-    if (!selectedCourseDetails?.name) return;
+
+    const hasProgress =
+      Object.values(holeScores || {}).some((value) => Number(value || 0) > 0) ||
+      Object.values(pickedUpHoles || {}).some(Boolean);
+
+    if (!hasProgress) return;
+
+    const draftCourse =
+      selectedCourseDetails?.name
+        ? selectedCourseDetails
+        : {
+            name: detailedScorecard?.course_name || courseSearch || "Selected Course",
+            tee:
+              detailedScorecard?.tee_set?.colour ||
+              detailedScorecard?.tee_set?.name ||
+              "Yellow",
+            par: Number(detailedScorecard?.tee_set?.par || 72),
+            rating: Number(detailedScorecard?.tee_set?.course_rating || 72),
+            slope: Number(detailedScorecard?.tee_set?.slope_rating || 113),
+          };
 
     try {
       localStorage.setItem(
@@ -3581,7 +3611,7 @@ function importDefaultCourses() {
         JSON.stringify({
           roundEntryMode,
           selectedPlayer,
-          course: selectedCourseDetails,
+          course: draftCourse,
           detailedScorecard,
           holeScores,
           pickedUpHoles,
@@ -3599,6 +3629,7 @@ function importDefaultCourses() {
     selectedPlayer,
     selectedCourseDetails?.name,
     selectedCourseDetails?.tee,
+    courseSearch,
     detailedScorecard,
     holeScores,
     pickedUpHoles,
