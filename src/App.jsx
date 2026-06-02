@@ -2645,27 +2645,20 @@ function importDefaultCourses() {
   function handleCourseSearchChange(value) {
     setCourseSearch(value);
 
-    const matches = getFilteredCourses(value);
-
     setDetailedScorecard(null);
     setHoleScores({});
     setPickedUpHoles({});
     setScorecardError("");
     setAutoLoadedScorecardKey("");
 
-    if (matches.length > 0) {
-      const firstMatch = matches[0];
-      setSelectedCourse(courseKey(firstMatch));
-      setScorecardApiDebug(`Ready to load: ${firstMatch.name} / ${firstMatch.tee}`);
-    } else {
-      setSelectedCourse("");
-      const typedCourse = buildTypedCourseFromSearch(value);
-      setScorecardApiDebug(
-        typedCourse
-          ? `Ready to try API/fallback for: ${typedCourse.name} / Yellow`
-          : ""
-      );
-    }
+    // Important: typing must NOT auto-select or auto-load the first match.
+    // A course is only selected when the user taps one from the matching list.
+    setSelectedCourse("");
+
+    const typedCourse = buildTypedCourseFromSearch(value);
+    setScorecardApiDebug(
+      typedCourse ? "Select a course from the matching results below" : ""
+    );
   }
 
   function chooseCourse(course) {
@@ -3184,36 +3177,9 @@ function importDefaultCourses() {
   }
 
   function getCourseToLoad() {
-    const searchText = String(courseSearch || "").trim().toLowerCase();
-
-    if (isLeasoweCourseName(searchText)) {
-      const existingLeasowe = courses.find((c) => isLeasoweCourseName(c.name));
-      return existingLeasowe || {
-        name: "Leasowe Golf Club",
-        tee: "Yellow",
-        par: 71,
-        rating: 71.4,
-        slope: 129,
-      };
-    }
-
-    if (!searchText) return selectedCourseDetails;
-
-    const matches = getFilteredCourses(courseSearch);
-    const exactMatch = matches.find(
-      (c) => c.name.toLowerCase() === searchText
-    );
-
-    const selectedMatchesSearch = selectedCourseDetails?.name
-      ?.toLowerCase()
-      .includes(searchText);
-
-    return (
-      exactMatch ||
-      (selectedMatchesSearch ? selectedCourseDetails : matches[0]) ||
-      buildTypedCourseFromSearch(courseSearch) ||
-      selectedCourseDetails
-    );
+    // Only load a course that has been deliberately selected by the user.
+    // Do not infer from typed search text or the first matching result.
+    return courses.find((c) => courseKey(c) === selectedCourse) || null;
   }
 
   async function loadDetailedScorecardTest() {
@@ -3439,10 +3405,7 @@ function importDefaultCourses() {
   const filteredCourses = getFilteredCourses(courseSearch);
   const typedSearchCourse = buildTypedCourseFromSearch(courseSearch);
   const selectedCourseDetails =
-    courses.find((c) => courseKey(c) === selectedCourse) ||
-    filteredCourses[0] ||
-    (String(courseSearch || "").trim() ? typedSearchCourse : null) ||
-    courses[0];
+    courses.find((c) => courseKey(c) === selectedCourse) || null;
 
   const selectedPlayerDetails = findPlayerByName(players, selectedPlayer);
   const detailedHoles = detailedScorecard?.tee_set?.holes || [];
@@ -3533,6 +3496,7 @@ function importDefaultCourses() {
 
   useEffect(() => {
     if (roundEntryMode !== "hole-by-hole") return;
+    if (!selectedCourse) return;
     if (!selectedCourseDetails?.name) return;
     if (scorecardLoading) return;
     if (!String(courseSearch || "").trim()) return;
@@ -4397,18 +4361,27 @@ function importDefaultCourses() {
                 </div>
               )}
 
-              <div className="player-card">
-                <div>
-                  <strong>{selectedCourseDetails.name}</strong><br />
-                  {selectedCourseDetails.tee} | Par {selectedCourseDetails.par} | Rating {selectedCourseDetails.rating} | Slope {selectedCourseDetails.slope}
-                  {scorecardApiDebug && (
-                    <>
-                      <br />
-                      <span className="muted">{scorecardApiDebug}</span>
-                    </>
-                  )}
+              {selectedCourseDetails ? (
+                <div className="player-card">
+                  <div>
+                    <strong>{selectedCourseDetails.name}</strong><br />
+                    {selectedCourseDetails.tee} | Par {selectedCourseDetails.par} | Rating {selectedCourseDetails.rating} | Slope {selectedCourseDetails.slope}
+                    {scorecardApiDebug && (
+                      <>
+                        <br />
+                        <span className="muted">{scorecardApiDebug}</span>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="player-card">
+                  <div>
+                    <strong>No course selected</strong><br />
+                    <span className="muted">Type a course name, then tap one from the matching courses list.</span>
+                  </div>
+                </div>
+              )}
 
               <div className="scorecard-test-box">
                 {scorecardLoading && (
@@ -4584,12 +4557,21 @@ function importDefaultCourses() {
                 </div>
               )}
 
-              <div className="player-card">
-                <div>
-                  <strong>{selectedCourseDetails.name}</strong><br />
-                  {selectedCourseDetails.tee} | Par {selectedCourseDetails.par} | Rating {selectedCourseDetails.rating} | Slope {selectedCourseDetails.slope}
+              {selectedCourseDetails ? (
+                <div className="player-card">
+                  <div>
+                    <strong>{selectedCourseDetails.name}</strong><br />
+                    {selectedCourseDetails.tee} | Par {selectedCourseDetails.par} | Rating {selectedCourseDetails.rating} | Slope {selectedCourseDetails.slope}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="player-card">
+                  <div>
+                    <strong>No course selected</strong><br />
+                    <span className="muted">Type a course name, then tap one from the matching courses list.</span>
+                  </div>
+                </div>
+              )}
 
               <input
                 placeholder="Gross score"
