@@ -769,6 +769,53 @@ function calculateStablefordPoints(holes, holeScores, playerHandicap, course, pi
 }
 
 
+function calculateRunningScoreSummary(holes, holeScores, playerHandicap, course, pickedUpHoles = {}) {
+  if (!holes?.length) {
+    return {
+      through: 0,
+      gross: 0,
+      stableford: 0,
+      pickedUpCount: 0,
+      hasScores: false,
+    };
+  }
+
+  return holes.reduce(
+    (summary, hole) => {
+      const holeNumber = hole.hole_number;
+      const pickedUp = !!pickedUpHoles[holeNumber];
+      const gross = Number(holeScores[holeNumber] || 0);
+      const hasScore = gross > 0;
+
+      if (!pickedUp && !hasScore) return summary;
+
+      const stableford = calculateHoleStablefordPoint(
+        hole,
+        gross,
+        playerHandicap,
+        course,
+        pickedUp
+      );
+
+      return {
+        through: summary.through + 1,
+        gross: summary.gross + (pickedUp ? 0 : gross),
+        stableford: summary.stableford + (Number(stableford) || 0),
+        pickedUpCount: summary.pickedUpCount + (pickedUp ? 1 : 0),
+        hasScores: true,
+      };
+    },
+    {
+      through: 0,
+      gross: 0,
+      stableford: 0,
+      pickedUpCount: 0,
+      hasScores: false,
+    }
+  );
+}
+
+
 const HARDCODED_SCORECARDS = {
   "leasowe golf club": {
     course_name: "Leasowe Golf Club",
@@ -3479,6 +3526,13 @@ function importDefaultCourses() {
     selectedCourseDetails,
     pickedUpHoles
   );
+  const runningScoreSummary = calculateRunningScoreSummary(
+    detailedHolesForRound,
+    holeScores,
+    selectedPlayerDetails?.handicap,
+    selectedCourseDetails,
+    pickedUpHoles
+  );
 
   useEffect(() => {
     if (!loggedIn) return;
@@ -3795,6 +3849,49 @@ function importDefaultCourses() {
           font-weight: 700;
           color: #64748b;
           margin-bottom: 2px;
+        }
+
+        .running-score-total {
+          position: sticky;
+          bottom: 10px;
+          z-index: 20;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          margin: 14px 0 4px;
+          padding: 10px;
+          border-radius: 18px;
+          background: #0f172a;
+          color: #ffffff;
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+        }
+
+        .running-score-total div {
+          text-align: center;
+        }
+
+        .running-score-total span {
+          display: block;
+          margin-bottom: 2px;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #cbd5e1;
+        }
+
+        .running-score-total strong {
+          font-size: 18px;
+          line-height: 1.1;
+        }
+
+        .running-score-note {
+          grid-column: 1 / -1;
+          margin: 0;
+          text-align: center;
+          font-size: 11px;
+          font-weight: 700;
+          color: #cbd5e1;
         }
 
         .calculated-score-label {
@@ -4537,6 +4634,28 @@ function importDefaultCourses() {
                         );
                       })}
                     </div>
+
+                    {runningScoreSummary.hasScores && (
+                      <div className="running-score-total">
+                        <div>
+                          <span>Gross</span>
+                          <strong>{runningScoreSummary.gross}</strong>
+                        </div>
+                        <div>
+                          <span>Stableford</span>
+                          <strong>{runningScoreSummary.stableford} pts</strong>
+                        </div>
+                        <div>
+                          <span>Through</span>
+                          <strong>{runningScoreSummary.through} holes</strong>
+                        </div>
+                        {runningScoreSummary.pickedUpCount > 0 && (
+                          <p className="running-score-note">
+                            Picked-up holes count as 0 Stableford points and are excluded from running gross.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
